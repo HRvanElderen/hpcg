@@ -28,7 +28,9 @@
 #include "OptimizeProblem.hpp"
 #include <nlohmann/json.hpp>
 #include <iostream>
+#include <filesystem>
 
+using namespace std;
 #ifdef HPCG_DEBUG
 #include <fstream>
 using std::endl;
@@ -63,24 +65,34 @@ void ReportResults(const SparseMatrix &A, int numberOfMgLevels, int numberOfCgSe
   double t4min = 0.0;
   double t4max = 0.0;
   double t4avg = 0.0;
+  int rank;
+  MPI_Status status;
   MPI_Allreduce(&t4, &t4min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&t4, &t4max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&t4, &t4avg, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   t4avg = t4avg / ((double)A.geom->size);
 
   double mean_times[10];
-  double max_times[10];
   double tmax = 0.0;
   double tavg = 0.0;
+  int max_loc[2];
+  int max_glob[2];
+  max_loc[0] = times[0];
+  max_loc[1] = A.geom->rank;
+  double max_times[10];
+  copy(times, times + 10, max_times);
+
+  // find process with max total time and get all its times
+  MPI_Allreduce(&max_loc, &max_glob, 1, MPI_DOUBLE_INT, MPI_MAXLOC, MPI_COMM_WORLD);
+  MPI_Bcast(max_times, 10, MPI_DOUBLE, max_glob[1], MPI_COMM_WORLD);
+
+  // calculate average times
   for (size_t i = 0; i < 10; i++)
   {
-    MPI_Allreduce(&times[i], &tmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     MPI_Allreduce(&times[i], &tavg, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     tavg = tavg / ((double)A.geom->size);
     mean_times[i] = tavg;
-    max_times[i] = tmax;
   }
-
 #endif
 
   if (A.geom->rank == 0)
@@ -302,7 +314,17 @@ void ReportResults(const SparseMatrix &A, int numberOfMgLevels, int numberOfCgSe
                             {"Total_conv_opt", totalGflops}};
     json_dict["Overview"] = {{"GFLOP/s", totalGflops}, {"time", times[0]}};
 
-    std::ofstream Output("results.json");
+    std::__fs::filesystem::create_directory("cpp");
+    time_t rawtime;
+    time(&rawtime);
+    tm *ptm = localtime(&rawtime);
+    char sdate[25];
+    // use tm_mon+1 because tm_mon is 0 .. 11 instead of 1 .. 12
+    sprintf(sdate, "%04d-%02d-%02d_%02d-%02d-%02d", ptm->tm_year + 1900, ptm->tm_mon + 1,
+            ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
+
+    string json_file = string(sdate) + ".json";
+    std::ofstream Output("cpp/" + json_file);
     Output << json_dict;
     Output.close();
 

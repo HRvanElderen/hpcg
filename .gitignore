@@ -9,3 +9,11 @@ bin/hpcg20*.txt
 build/
 
 .vscode/
+
+MPI/bin/cpp/
+
+MPI/bin/results/
+
+MPI/bin/
+
+MPI/src/

@@ -30,7 +30,7 @@ const char* NULLDEVICE="/dev/null";
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
+#include <string>
 #include <fstream>
 #include <iostream>
 
@@ -69,6 +69,7 @@ HPCG_Init(int * argc_p, char ** *argv_p, HPCG_Params & params) {
   int argc = *argc_p;
   char ** argv = *argv_p;
   char fname[80];
+  char ffolder[80];
   int i, j, *iparams;
   char cparams[][7] = {"--nx=", "--ny=", "--nz=", "--rt=", "--pz=", "--zl=", "--zu=", "--npx=", "--npy=", "--npz="};
   time_t rawtime;
@@ -76,7 +77,7 @@ HPCG_Init(int * argc_p, char ** *argv_p, HPCG_Params & params) {
   const int nparams = (sizeof cparams) / (sizeof cparams[0]);
   bool broadcastParams = false; // Make true if parameters read from file.
 
-  iparams = (int *)malloc(sizeof(int) * nparams);
+  iparams = (int *)malloc(sizeof(int) * nparams); 
 
   // Initialize iparams
   for (i = 0; i < nparams; ++i) iparams[i] = 0;
@@ -88,9 +89,13 @@ HPCG_Init(int * argc_p, char ** *argv_p, HPCG_Params & params) {
   /* for some MPI environments, command line arguments may get complicated so we need a prefix */
   for (i = 1; i <= argc && argv[i]; ++i)
     for (j = 0; j < nparams; ++j)
-      if (startswith(argv[i], cparams[j]))
+      if (startswith(argv[i], "--out=")){
+        if (sscanf(argv[i]+strlen("--out="), "%79s", ffolder) != 1)
+          strncpy(ffolder, "cpp", 80);
+      } else if (startswith(argv[i], cparams[j])){
         if (sscanf(argv[i]+strlen(cparams[j]), "%d", iparams+j) != 1)
           iparams[j] = 0;
+      }
 
   // Check if --rt was specified on the command line
   int * rt  = iparams+3;  // Assume runtime was not specified and will be read from the hpcg.dat file
@@ -130,6 +135,7 @@ HPCG_Init(int * argc_p, char ** *argv_p, HPCG_Params & params) {
   params.npx = iparams[7];
   params.npy = iparams[8];
   params.npz = iparams[9];
+  params.output_folder = ffolder;
 
 #ifndef HPCG_NO_MPI
   MPI_Comm_rank( MPI_COMM_WORLD, &params.comm_rank );

@@ -55,7 +55,7 @@ using std::endl;
   @see YAML_Doc
 */
 void ReportResults(const SparseMatrix &A, int numberOfMgLevels, int numberOfCgSets, int refMaxIters, int optMaxIters, double times[],
-                   const TestCGData &testcg_data, const TestSymmetryData &testsymmetry_data, const TestNormsData &testnorms_data, int global_failure, bool quickPath)
+                   const TestCGData &testcg_data, const TestSymmetryData &testsymmetry_data, const TestNormsData &testnorms_data, int global_failure, bool quickPath, std::string output_folder)
 {
 
   double minOfficialTime = 1800; // Any official benchmark result must run at least this many seconds
@@ -314,7 +314,8 @@ void ReportResults(const SparseMatrix &A, int numberOfMgLevels, int numberOfCgSe
                             {"Total_conv_opt", totalGflops}};
     json_dict["Overview"] = {{"GFLOP/s", totalGflops}, {"time", times[0]}};
 
-    std::__fs::filesystem::create_directory("cpp");
+    //std::__fs::filesystem::create_directory("results");
+    std::__fs::filesystem::create_directories(output_folder);
     time_t rawtime;
     time(&rawtime);
     tm *ptm = localtime(&rawtime);
@@ -324,7 +325,7 @@ void ReportResults(const SparseMatrix &A, int numberOfMgLevels, int numberOfCgSe
             ptm->tm_mday, ptm->tm_hour, ptm->tm_min, ptm->tm_sec);
 
     string json_file = string(sdate) + ".json";
-    std::ofstream Output("cpp/" + json_file);
+    std::ofstream Output(output_folder +"/"+ json_file);
     Output << json_dict;
     Output.close();
 
